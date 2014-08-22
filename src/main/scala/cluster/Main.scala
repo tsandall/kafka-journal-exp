@@ -33,7 +33,7 @@ class AccountManager extends Actor {
 
   val shardRegion = ClusterSharding(context.system).start(
     typeName = AccountSharding.TYPE_NAME,
-    entryProps = Some(SimpleActor.props()),
+    entryProps = Some(AccountActor.props()),
     shardResolver = AccountSharding.shardResolver,
     idExtractor = AccountSharding.idExtractor
   )
@@ -53,7 +53,7 @@ class AccountManager extends Actor {
       forwarded += 1
       shardRegion ! msg
 
-    case AccountCommandReply =>
+    case AccountCommandExecuted =>
       committed += 1
 
     case "tick" =>

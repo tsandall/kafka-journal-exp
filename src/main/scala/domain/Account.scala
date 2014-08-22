@@ -12,8 +12,6 @@ object Account {
   def apply(): Account = Account(0)
 }
 
-case object AccountCommandReply
-
 sealed trait AccountCommand {
   val id: String
 }
@@ -22,19 +20,20 @@ case class GetBalance(id: String) extends AccountCommand
 case class DebitAccount(id: String, amount: Int) extends AccountCommand
 case class CreditAccount(id: String, amount: Int) extends AccountCommand
 
-case class AccountDebit(amount: Int)
-case class AccountCredit(amount: Int)
+case object AccountCommandExecuted
 
+sealed trait AccountEvent
 
-object SimpleActor {
-  def props(): Props = Props(new SimpleActor)
+case class AccountDebit(amount: Int) extends AccountEvent
+case class AccountCredit(amount: Int) extends AccountEvent
+
+object AccountActor {
+  def props(): Props = Props(new AccountActor)
 }
 
-class SimpleActor extends PersistentActor {
+class AccountActor extends PersistentActor {
 
   val persistenceId = self.path.name
-
-  println(s"started ${self.path} with ID = $persistenceId")
 
   var account = Account()
 
@@ -45,32 +44,22 @@ class SimpleActor extends PersistentActor {
   }
 
   def receiveCommand = {
-
-    case DebitAccount(_, amount) =>
-      if (account.balance >= amount) {
-        persist(AccountDebit(amount))(debitAndReply)
-      }
-
-    case CreditAccount(_, amount) =>
-      persist(AccountCredit(amount))(creditAndReply)
-
-    case GetBalance(name) =>
-      sender() ! account.balance
-
+    case DebitAccount(_, amount) => persist(AccountDebit(amount))(debitAndReply)
+    case CreditAccount(_, amount) => persist(AccountCredit(amount))(creditAndReply)
+    case GetBalance(name) => sender() ! account.balance
     case "snap" => saveSnapshot(account)
-
   }
 
   private def debitAndReply(evt: AccountDebit): Unit = {
     debit(evt)
-    sender() ! AccountCommandReply
+    sender() ! AccountCommandExecuted
   }
 
   private def debit(evt: AccountDebit): Unit = account = account.debit(evt.amount)
 
   private def creditAndReply(evt: AccountCredit): Unit = {
     credit(evt)
-    sender() ! AccountCommandReply
+    sender() ! AccountCommandExecuted
   }
 
   private def credit(evt: AccountCredit): Unit = account = account.credit(evt.amount)
